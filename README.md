@@ -6,7 +6,8 @@ A code developed and maintained by S. D'Ambrosi, J. Wu and M. Baity-Jesi.
 
 #### Python
 Version: xxx
-Packages: numpy, 
+
+Required Packages: numpy, 
 
 
 ## Data download
