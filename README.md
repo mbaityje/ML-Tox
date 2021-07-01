@@ -1,6 +1,6 @@
 # ML-Tox
 
-A code developed and maintained by S. D'Ambrosi, J. Wu and M. Baity-Jesi.
+A code developed and maintained by J. Wu, S. D'Ambrosi, and M. Baity-Jesi.
 
 ## Installations
 
