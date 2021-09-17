@@ -1,4 +1,4 @@
-from helper_dataprocessing import *
+from helpers.helper_dataprocessing import *
 
 # -----------------------Step 1: Load Data--------------------------------
 
@@ -11,7 +11,11 @@ from helper_dataprocessing import *
 # For information on molecular weight, melting Point, water Solubility and Smiles we
 # used data from CompTox (DSSTox_Predicted_NCCT_Model.zip: DSSToxQueryWPred1.xlsx,
 # DSSToxQueryWPred2.xlsx, DSSToxQueryWPred3.xlsx, DSSToxQueryWPred4.xlsx).
-# The website was ftp://newftp.epa.gov/COMPTOX/Sustainable_Chemistry_Data/Chemistry_Dashboard
+# The website was 
+# https://comptox.epa.gov/dashboard/downloads (not sure)
+# the download URL of the file is
+# ftp://newftp.epa.gov/COMPTOX/Sustainable_Chemistry_Data/Chemistry_Dashboard/DSSTox_Predicted_NCCT_Model.zip
+
 
 # In the first file there are information regarding the species of animals: all the
 # taxonomic denomination (from domain to variety), other typical denominations
@@ -24,14 +28,14 @@ from helper_dataprocessing import *
 # The last file contains experiment results records: LC50, ACC, EC50, etc.
 # Aggregation of information tables on chemicals, species and tests is based on internal keys.
 
-DATA_RESULTS_PATH = ".../data/raw/results.txt"
-DATA_TEST_PATH = ".../data/raw/tests.txt"
-DATA_SPECIES_PATH = ".../data/raw/species.txt"
+DATA_SPECIES_PATH = "../data/raw/species.txt"
+DATA_TEST_PATH = "../data/raw/tests.txt"
+DATA_RESULTS_PATH = "../data/raw/results.txt"
 DATA_PROPERTY_PATH = [
-    ".../data/DSSToxQueryWPred1.xlsx",
-    ".../data/DSSToxQueryWPred2.xlsx",
-    ".../data/DSSToxQueryWPred3.xlsx",
-    ".../data/DSSToxQueryWPred4.xlsx",
+    "../data/DSSToxQueryWPred1.xlsx",
+    "../data/DSSToxQueryWPred2.xlsx",
+    "../data/DSSToxQueryWPred3.xlsx",
+    "../data/DSSToxQueryWPred4.xlsx",
 ]
 
 tests, species, results, properties = load_raw_data(
@@ -74,12 +78,18 @@ results = repeated_experiments(results_imputed)
 # you can use the alternative function "process_chemicals" which takes as input a dataset
 # with these info already extracted.
 
-# Option 1: get the properties
-# results_pub = smiles_to_pubchem(results)
 
-# Option 2: use the saved file
-pubchem = pd.read_csv("/local/wujimeng/code_simone/data/cas_pub_tot.csv")
-results_pub = results.merge(pubchem[["smiles", "pubchem2d"]], on="smiles")
+if 1:
+    # Option 1: get the properties
+    results_pub = smiles_to_pubchem(results)
+else:
+    # Option 2: use the saved file
+    # The smiles column was extracted from the raw property datasets (DSSToxQueryWPred1-4) for each chemical in our invivo dataset.
+    # The pubchem2d column was generated using the function smiles_to_pubchem() in helper_dataprocessing.py on all the chemicals in our in vivo dataset.  
+    # The function gets pubchem2d from smiles using the PubChemPy package. 
+
+    pubchem = pd.read_csv("../data/processed/cas_pub_tot.csv")
+    results_pub = results.merge(pubchem[["smiles", "pubchem2d"]], on="smiles")
 
 # extract other molecular properties
 results_chem = extract_mol_properties(results_pub)

@@ -1,8 +1,10 @@
+# Data that we do not want on github
+data/ecotox_ascii*/
+data/DSSToxQueryWPred?.xlsx
+data/raw/
+jimeng-code*/
 tex/
 
-# Data
-ecotox_ascii*/
-jimeng-code*/
 
 
 # Byte-compiled / optimized / DLL files
