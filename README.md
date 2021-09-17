@@ -5,9 +5,9 @@ A code developed and maintained by J. Wu, S. D'Ambrosi, and M. Baity-Jesi.
 ## Installations
 
 #### Python
-Version: xxx
+Version: 3.6.10
 
-Required Packages: numpy, 
+Required Packages: numpy, pandas, rdkit, tqdm, urllib3, pubchempy, 
 
 
 ## Data download
@@ -22,7 +22,7 @@ wget https://gaftp.epa.gov/ecotox/ecotox_ascii_03_15_2021.zip # This is for the 
 unzip ecotox_ascii_03_15_2021.zip # Decompress
 mv ecotox_ascii_03_15_2021 data/ # Move it to the data directory
 ```
-If having problems with certificates, you can try adding the `--no-check-certificate` flag.
+If having problems with certificates, you can try adding the `--no-check-certificate` flag to the `wget` command.
 
 
 

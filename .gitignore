@@ -1,5 +1,8 @@
+tex/
+
 # Data
-ecotox_ascii*
+ecotox_ascii*/
+jimeng-code*/
 
 
 # Byte-compiled / optimized / DLL files
