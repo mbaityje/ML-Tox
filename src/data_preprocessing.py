@@ -74,12 +74,11 @@ results = repeated_experiments(results_imputed)
 
 # We use the file to extract all information from the CASRN.
 
-# If you want to avoid calculating all pubchems and molecular descriptors (about 2 hours)
+# If you want to avoid calculating all pubchems and molecular descriptors (takes several hours)
 # you can use the alternative function "process_chemicals" which takes as input a dataset
 # with these info already extracted.
 
-
-if 1:
+if 0:
     # Option 1: get the properties
     results_pub = smiles_to_pubchem(results)
 else:
@@ -103,5 +102,5 @@ results_chem = extract_mol_properties(results_pub)
 
 final_results = process_features(results_chem)
 
-final_results.to_csv("lc50_processed_jim.csv")
+final_results.to_csv("../data/processed/lc50_processed.csv")
 print("data saved.")
