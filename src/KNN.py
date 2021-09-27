@@ -1,78 +1,51 @@
-from helper_model import (
-    recall_score,
-    precision_score,
-    accuracy_score,
-    mean_squared_error,
-    f1_score,
-    categorical,
-    non_categorical,
-    train_test_split,
-    KNeighborsClassifier,
-    load_data,
-    select_alpha,
-    dist_matrix,
-    MinMaxScaler,
-    confusion_matrix,
-)
-import numpy as np
-from time import ctime
+from helper_model import *
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
 import argparse
-import sys
-import os
 
 
 def getArguments():
     parser = argparse.ArgumentParser(description="Running KNN_model for datasets.")
-    parser.add_argument("-i", "--input", dest="inputFile", required=True)
-    parser.add_argument("-e", "--encoding", dest="encoding", default="binary")
+    parser.add_argument("-i", "--input", help="inputFile position", required=True)
     parser.add_argument(
-        "-l", "--leaf_ls", dest="leaf_list", required=True, nargs="+", type=int
+        "-e", "--encoding", help="encoding: binary, multiclass", default="binary"
     )
-    parser.add_argument("-invitro", "--invitro", dest="invitro_file", default=False)
     parser.add_argument(
-        "-n", "--neighbors", dest="neighbors", required=True, nargs="+", type=int
+        "-l",
+        "--leaf_ls",
+        help="list of leafs number to be chosen in the KNN mdoel",
+        required=True,
+        nargs="+",
+        type=int,
     )
-    parser.add_argument("-o", "--output", dest="outputFile", default="binary.txt")
+    parser.add_argument(
+        "-vf",
+        "--vitro_file",
+        help="whether the input file is about invitro",
+        default="False",
+    )
+    parser.add_argument(
+        "-n",
+        "--neighbors",
+        help="list of neighbor value in the KNN model",
+        required=True,
+        nargs="+",
+        type=int,
+    )
+
+    parser.add_argument("-o", "--output", help="outputFile", default="binary.txt")
     return parser.parse_args()
 
 
+# example:
+# python .../KNN.py -i ../lc50_processed.csv  -l 10 30 50 70 90 -n 1 -o .../1nn_bi.txt
+# python .../KNN.py -i ../invitro_processed.csv  -l 10 30 50 70 90 -vf True -n 1 -o  .../invitro_1nn_bi.txt
+
 args = getArguments()
 
-categorical = [
-    "class",
-    "tax_order",
-    "family",
-    "genus",
-    "species",
-    "control_type",
-    "media_type",
-    "application_freq_unit",
-    "exposure_type",
-    "conc1_type",
-    "obs_duration_mean",
-    "invitro_label",
-]
-
-if args.invitro:
+if args.vitro_file == "True":
     categorical = ["class", "tax_order", "family", "genus", "species"]
-# non_categorical was numerical features, whcih will be standarized. \
-# Mol,bonds_number, atom_number was previously log transformed due to the maginitude of their values.
-
-non_categorical = [
-    "ring_number",
-    "tripleBond",
-    "doubleBond",
-    "alone_atom_number",
-    "oh_count",
-    "atom_number",
-    "bonds_number",
-    "MorganDensity",
-    "LogP",
-    "mol_weight",
-    "water_solubility",
-    "melting_point",
-]
-
 
 if args.encoding == "binary":
     encoding = "binary"
@@ -81,50 +54,50 @@ elif args.encoding == "multiclass":
     encoding = "multiclass"
     encoding_value = [0.1, 1, 10, 100]
 
-# loading data & splitting into train and test dataset
+
+# -------------------loading data--------------------
 print("loading dataset...", ctime())
 X, Y = load_data(
-    args.inputFile,
+    args.input,
     encoding=encoding,
     categorical_columns=categorical,
     encoding_value=encoding_value,
     seed=42,
 )
-# X = X[:1000]
-# Y = Y[:1000]
 
+# splitting into train and test dataset
 X_train, X_test, Y_train, Y_test = train_test_split(
     X, Y, test_size=0.2, random_state=42
 )
 
+# -------------------training --------------------
 # using 5-fold cross validation to choose the alphas with best accuracy
-
 sequence_alpha = np.logspace(-5, 0, 30)
 # sequence_alpha = np.logspace(-2, 0, 50)
 
-print(ctime())
-best_alpha_h, best_alpha_p, best_leaf, best_neighbor, best_results = select_alpha(
+print("training start", ctime())
+best_ah, best_ap, best_leaf, best_neighbor, best_results = select_alpha(
     X_train,
-    sequence_alpha,
     Y_train,
     categorical,
     non_categorical,
-    args.leaf_list,
+    sequence_alpha,
+    args.leaf_ls,
     args.neighbors,
     encoding,
 )
 print(ctime())
 
-# validate on the test dataset
+# -------------------tested on test dataset--------------------
+
+# min max transform the numerical columns
 minmax = MinMaxScaler().fit(X_train[non_categorical])
 X_train[non_categorical] = minmax.transform(X_train.loc[:, non_categorical])
 X_test[non_categorical] = minmax.transform(X_test.loc[:, non_categorical])
 
-matrix = dist_matrix(
-    X_test, X_train, non_categorical, categorical, best_alpha_h, best_alpha_p
-)
+matrix = dist_matrix(X_test, X_train, non_categorical, categorical, best_ah, best_ap)
 matrix_train = dist_matrix(
-    X_train, X_train, non_categorical, categorical, best_alpha_h, best_alpha_p
+    X_train, X_train, non_categorical, categorical, best_ah, best_ap
 )
 neigh = KNeighborsClassifier(
     n_neighbors=best_neighbor, metric="precomputed", leaf_size=best_leaf
@@ -132,6 +105,7 @@ neigh = KNeighborsClassifier(
 neigh.fit(matrix_train, Y_train.astype("int").ravel())
 y_pred = neigh.predict(matrix)
 
+# calculate the score
 if encoding == "binary":
 
     accs = accuracy_score(Y_test, y_pred)
@@ -172,15 +146,15 @@ print(
     best_results["se_f1"],
 )
 
-# saving the information into a file
+# ----------------saving the information into a file-------
 info = []
 info.append(
     """The best params were alpha_h:{}, alpha_p:{} ,leaf:{},neighbor:{}""".format(
-        best_alpha_h, best_alpha_p, best_leaf, best_neighbor
+        best_ah, best_ap, best_leaf, best_neighbor
     )
 )
 info.append(
-    """Accuracy:  {}, Se.Accuracy:  {} 
+    """Accuracy:  {}, Se.Accuracy:  {}
 		\nSensitivity:  {}, Se.Sensitivity: {}
         \nSpecificity:  {}, Se.Specificity:{}
 		\nPrecision:  {}, Se.Precision: {}
@@ -199,12 +173,7 @@ info.append(
 )
 
 info.append("The parameters was selected from {}".format("np.logspace(-2, 0, 30)"))
-info.append("The leaf was selected from {}".format(args.leaf_list))
+info.append("The leaf was selected from {}".format(args.leaf_ls))
 
-filename = args.outputFile
-dirname = os.path.dirname(filename)
-if not os.path.exists(dirname):
-    os.makedirs(dirname)
-with open(filename, "w") as file_handler:
-    for item in info:
-        file_handler.write("{}\n".format(item))
+
+str2file(info, args.output)
