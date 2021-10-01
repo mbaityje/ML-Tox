@@ -6,7 +6,6 @@ from sklearn.model_selection import KFold
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from time import ctime
-from tqdm import tqdm
 import argparse
 from helper_model import *
 import multiprocessing as mp
@@ -19,22 +18,54 @@ def getArguments():
     parser = argparse.ArgumentParser(
         description="Running Datafusion RASAR model for datasets to find the best N (neighbor) number."
     )
-    parser.add_argument("-i", "--input", dest="inputFile", required=True)
-    parser.add_argument("-idf", "--input_df", dest="inputFile_df", required=True)
+    parser.add_argument("-i", "--input", help="inputFile position", required=True)
     parser.add_argument(
-        "-n", "--neighbors", dest="neighbors", required=True, nargs="+", type=int
+        "-idf", "--input_df", help="input datafusion File position", required=True
     )
-    parser.add_argument("-iv", "--invitro", dest="invitro", default=False)
-    parser.add_argument("-ah", "--alpha_h", dest="hamming_alpha", default="logspace")
-    parser.add_argument("-ap", "--alpha_p", dest="pubchem2d_alpha", default="logspace")
-    parser.add_argument("-label", "--train_label", dest="train_label", required=True)
-    parser.add_argument("-dbi", "--db_invitro", dest="db_invitro", default="noinvitro")
-    parser.add_argument("-wi", "--w_invitro", dest="w_invitro", default="False")
+    parser.add_argument("-e", "--encoding", help="encoding", default="binary")
     parser.add_argument(
-        "-il", "--invitro_label", dest="invitro_label", default="number"
+        "-il",
+        "--invitro_label",
+        help=" input invitro form: number, label, both, representing using the concentration value\
+             of invitro experiment, labeled class value of the invitro experiment, or both",
+        default="number",
     )
-    parser.add_argument("-effect", "--train_effect", dest="train_effect", required=True)
-    parser.add_argument("-o", "--output", dest="outputFile", default="binary.txt")
+
+    parser.add_argument(
+        "-wi",
+        "--w_invitro",
+        help="using the invitro as input or not: True, False, own;\
+         representing using invivo plus invitro information as input, using only invivo information as input\
+             using only invitro information as input",
+        default="False",
+    )
+    parser.add_argument(
+        "-n",
+        "--n_neighbors",
+        help="number of neighbors in the RASAR model",
+        nargs="?",
+        default=1,
+        type=int,
+    )
+
+    parser.add_argument(
+        "-vf",
+        "--vitro_file",
+        help="whether the input file is about invitro",
+        default="False",
+    )
+    parser.add_argument(
+        "-ah", "--alpha_h", help="alpha_hamming", required=True, nargs="?"
+    )
+    parser.add_argument(
+        "-ap", "--alpha_p", help="alpha_pubchem", required=True, nargs="?"
+    )
+
+    parser.add_argument(
+        "-endpoint", "--train_endpoint", help="train_endpoint", required=True
+    )
+    parser.add_argument("-effect", "--train_effect", help="train_effect", required=True)
+    parser.add_argument("-o", "--output", help="outputFile", default="binary.txt")
     return parser.parse_args()
 
 
@@ -47,7 +78,7 @@ def func(
     new_X,
     new_db_datafusion,
     db_datafusion_matrix,
-    train_label,
+    train_endpoint,
     train_effect,
     encoding,
     dist_matr_train,
@@ -70,7 +101,7 @@ def func(
         new_X.iloc[test_index],
         new_db_datafusion,
         db_datafusion_matrix,
-        train_label,
+        train_endpoint,
         train_effect,
         encoding,
     )
@@ -79,12 +110,14 @@ def func(
     test_rf = pd.concat([simple_rasar_test, datafusion_rasar_test], axis=1)
     invitro = args.w_invitro
     invitro_form = args.invitro_label
-    db_invitro = args.db_invitro
+    if args.w_invitro == "True":
+        db_invitro = "overlap"
+    else:
+        db_invitro = "noinvitro"
 
     if invitro == "own":
-        # train_rf = pd.DataFrame()
-        # test_rf = pd.DataFrame()
-        train_rf, test_rf = simple_rasar_train, simple_rasar_test
+        train_rf = pd.DataFrame()
+        test_rf = pd.DataFrame()
 
     if str(db_invitro) == "overlap":
         if (invitro != "False") & (invitro_form == "number"):
@@ -116,71 +149,7 @@ def func(
             test_rf["invitro_label"] = X.iloc[test_index, :].invitro_label.reset_index(
                 drop=True
             )
-        elif (invitro != "False") & (invitro_form == "label_half"):
-            train_rf["invitro_label_half"] = X.iloc[
-                train_index, :
-            ].invitro_label_half.reset_index(drop=True)
-            test_rf["invitro_label_half"] = X.iloc[
-                test_index, :
-            ].invitro_label_half.reset_index(drop=True)
 
-        elif (invitro != "False") & (invitro_form == "both_half"):
-            train_rf["invitro_conc"] = X.iloc[train_index, :].invitro_conc.reset_index(
-                drop=True
-            )
-            test_rf["invitro_conc"] = X.iloc[test_index, :].invitro_conc.reset_index(
-                drop=True
-            )
-            train_rf["invitro_label_half"] = X.iloc[
-                train_index, :
-            ].invitro_label_half.reset_index(drop=True)
-            test_rf["invitro_label_half"] = X.iloc[
-                test_index, :
-            ].invitro_label_half.reset_index(drop=True)
-        elif (invitro != "False") & (invitro_form == "label_reserved"):
-            train_rf["invitro_label_reserved"] = X.iloc[
-                train_index, :
-            ].invitro_label_reserved.reset_index(drop=True)
-            test_rf["invitro_label_reserved"] = X.iloc[
-                test_index, :
-            ].invitro_label_reserved.reset_index(drop=True)
-
-        elif (invitro != "False") & (invitro_form == "both_reserved"):
-            train_rf["invitro_conc"] = X.iloc[train_index, :].invitro_conc.reset_index(
-                drop=True
-            )
-            test_rf["invitro_conc"] = X.iloc[test_index, :].invitro_conc.reset_index(
-                drop=True
-            )
-            train_rf["invitro_label_reserved"] = X.iloc[
-                train_index, :
-            ].invitro_label_reserved.reset_index(drop=True)
-            test_rf["invitro_label_reserved"] = X.iloc[
-                test_index, :
-            ].invitro_label_reserved.reset_index(drop=True)
-        elif (invitro != "False") & (invitro_form == "label_half_reserved"):
-            train_rf["invitro_label_half_reserved"] = X.iloc[
-                train_index, :
-            ].invitro_label_half_reserved.reset_index(drop=True)
-            test_rf["invitro_label_half_reserved"] = X.iloc[
-                test_index, :
-            ].invitro_label_half_reserved.reset_index(drop=True)
-
-        elif (invitro != "False") & (invitro_form == "both_half_reserved"):
-            train_rf["invitro_conc"] = X.iloc[train_index, :].invitro_conc.reset_index(
-                drop=True
-            )
-            test_rf["invitro_conc"] = X.iloc[test_index, :].invitro_conc.reset_index(
-                drop=True
-            )
-            train_rf["invitro_label_half_reserved"] = X.iloc[
-                train_index, :
-            ].invitro_label_half_reserved.reset_index(drop=True)
-            test_rf["invitro_label_half_reserved"] = X.iloc[
-                test_index, :
-            ].invitro_label_half_reserved.reset_index(drop=True)
-
-    # print(train_rf.columns)
     model.fit(train_rf, y_train)
     y_pred = model.predict(test_rf)
 
@@ -196,43 +165,17 @@ def func(
 
 if __name__ == "__main__":
 
-    categorical = [
-        "class",
-        "tax_order",
-        "family",
-        "genus",
-        "species",
-        "control_type",
-        "media_type",
-        "application_freq_unit",
-        "exposure_type",
-        "conc1_type",
-        "obs_duration_mean",
-    ]
-    # non_categorical was numerical features, whcih will be standarized. \
-    # Mol,bonds_number, atom_number was previously log transformed due to the maginitude of their values.
-
-    non_categorical = [
-        "ring_number",
-        "tripleBond",
-        "doubleBond",
-        "alone_atom_number",
-        "oh_count",
-        "atom_number",
-        "bonds_number",
-        "mol_weight",
-        "MorganDensity",
-        "LogP",
-        "water_solubility",
-        "melting_point",
-    ]
     print("load data...", ctime())
 
-    if args.invitro:
+    if args.vitro_file:
         categorical = ["class", "tax_order", "family", "genus", "species"]
 
-    encoding = "binary"
-    encoding_value = 1
+    if args.encoding == "binary":
+        encoding = "binary"
+        encoding_value = 1
+    elif args.encoding == "multiclass":
+        encoding = "multiclass"
+        encoding_value = [0.1, 1, 10, 100]
 
     db_mortality, db_datafusion = load_datafusion_datasets(
         args.inputFile,
@@ -277,6 +220,11 @@ if __name__ == "__main__":
     else:
         sequence_ap = [float(args.pubchem2d_alpha)]
         sequence_ah = [float(args.hamming_alpha)]
+
+    if args.w_invitro == "True":
+        db_invitro = "overlap"
+    else:
+        db_invitro = "noinvitro"
 
     hyper_params_tune = {
         "max_depth": [i for i in range(10, 30, 6)],
@@ -340,7 +288,7 @@ if __name__ == "__main__":
                                     new_X,
                                     new_db_datafusion,
                                     db_datafusion_matrix,
-                                    args.train_label,
+                                    args.train_point,
                                     args.train_effect,
                                     encoding,
                                     train_matrix,
@@ -433,7 +381,7 @@ if __name__ == "__main__":
             X_test,
             db_datafusion,
             db_datafusion_matrix,
-            args.train_label,
+            args.train_point,
             args.train_effect,
             encoding,
         )
@@ -442,7 +390,7 @@ if __name__ == "__main__":
         test_rf = pd.concat([simple_rasar_test, datafusion_rasar_test], axis=1)
 
         invitro_form = args.invitro_label
-        db_invitro = args.db_invitro
+
         invitro = args.w_invitro
 
         if invitro == "own":
@@ -462,57 +410,6 @@ if __name__ == "__main__":
                 test_rf["ec50"] = X_test.invitro_conc.reset_index(drop=True)
                 train_rf["invitro_label"] = X_train.invitro_label.reset_index(drop=True)
                 test_rf["invitro_label"] = X_test.invitro_label.reset_index(drop=True)
-            elif (invitro != "False") & (invitro_form == "label_half"):
-                train_rf["invitro_label_half"] = X_train.invitro_label_half.reset_index(
-                    drop=True
-                )
-                test_rf["invitro_label_half"] = X_test.invitro_label_half.reset_index(
-                    drop=True
-                )
-
-            elif (invitro != "False") & (invitro_form == "both_half"):
-                train_rf["invitro_conc"] = X_train.invitro_conc.reset_index(drop=True)
-                test_rf["invitro_conc"] = X_test.invitro_conc.reset_index(drop=True)
-                train_rf["invitro_label_half"] = X_train.invitro_label_half.reset_index(
-                    drop=True
-                )
-                test_rf["invitro_label_half"] = X_test.invitro_label_half.reset_index(
-                    drop=True
-                )
-            elif (invitro != "False") & (invitro_form == "label_reserved"):
-                train_rf[
-                    "invitro_label_reserved"
-                ] = X_train.invitro_label_reserved.reset_index(drop=True)
-                test_rf[
-                    "invitro_label_reserved"
-                ] = X_test.invitro_label_reserved.reset_index(drop=True)
-
-            elif (invitro != "False") & (invitro_form == "both_reserved"):
-                train_rf["ec50"] = X_train.invitro_conc.reset_index(drop=True)
-                test_rf["ec50"] = X_test.invitro_conc.reset_index(drop=True)
-                train_rf[
-                    "invitro_label_reserved"
-                ] = X_train.invitro_label_reserved.reset_index(drop=True)
-                test_rf[
-                    "invitro_label_reserved"
-                ] = X_test.invitro_label_reserved.reset_index(drop=True)
-            elif (invitro != "False") & (invitro_form == "label_half_reserved"):
-                train_rf[
-                    "invitro_label_half_reserved"
-                ] = X_train.invitro_label_half_reserved.reset_index(drop=True)
-                test_rf[
-                    "invitro_label_half_reserved"
-                ] = X_test.invitro_label_half_reserved.reset_index(drop=True)
-
-            elif (invitro != "False") & (invitro_form == "both_half_reserved"):
-                train_rf["invitro_conc"] = X_train.invitro_conc.reset_index(drop=True)
-                test_rf["invitro_conc"] = X_test.invitro_conc.reset_index(drop=True)
-                train_rf[
-                    "invitro_label_half_reserved"
-                ] = X_train.invitro_label_half_reserved.reset_index(drop=True)
-                test_rf[
-                    "invitro_label_half_reserved"
-                ] = X_test.invitro_label_half_reserved.reset_index(drop=True)
 
         print(train_rf.columns)
         model.fit(train_rf, Y_train)
@@ -532,6 +429,7 @@ if __name__ == "__main__":
 
         final_result = pd.concat([final_result, pd.DataFrame([test_result])])
         print("finished", test_result["accs"], ctime())
+
     filename = args.outputFile
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):

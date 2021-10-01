@@ -3,7 +3,6 @@ from sklearn.model_selection import train_test_split, ParameterSampler
 import h2o
 from tqdm import tqdm
 import argparse
-import sys
 import os
 
 
@@ -11,24 +10,63 @@ def getArguments():
     parser = argparse.ArgumentParser(
         description="Running DataFusion RASAR model on the invivo dataset with the invitro dataset.)"
     )
-    parser.add_argument("-i", "--input", dest="inputFile", required=True)
-    parser.add_argument("-i2", "--input_df", dest="inputFile_df", required=True)
+    parser.add_argument("-i", "--input", help="inputFile position", required=True)
+
     parser.add_argument(
-        "-il", "--invitro_label", dest="invitro_label", default="number"
+        "-idf", "--input_df", help="input datafusion File position", required=True
     )
-    parser.add_argument("-dbi", "--db_invitro", dest="db_invitro", default="noinvitro")
-    parser.add_argument("-wi", "--w_invitro", dest="w_invitro", default="False")
-    parser.add_argument("-e", "--encoding", dest="encoding", default="binary")
-    parser.add_argument("-ah", "--alpha_h", dest="alpha_h", required=True)
-    parser.add_argument("-ap", "--alpha_p", dest="alpha_p", required=True)
     parser.add_argument(
-        "-n", "--n_neighbors", dest="n_neighbors", nargs="?", default=1, type=int
+        "-iv", "--input_vitro", help="input invitro file position", required=True
     )
-    parser.add_argument("-label", "--train_label", dest="train_label", required=True)
-    parser.add_argument("-effect", "--train_effect", dest="train_effect", required=True)
-    parser.add_argument("-o", "--output", dest="outputFile", default="binary.txt")
+    parser.add_argument("-e", "--encoding", help="encoding", default="binary")
+
+    parser.add_argument(
+        "-il",
+        "--invitro_label",
+        help=" input invitro form: number, label, both, representing using the concentration value\
+             of invitro experiment, labeled class value of the invitro experiment, or both",
+        default="number",
+    )
+    parser.add_argument(
+        "-wi",
+        "--w_invitro",
+        help="using the invitro as input or not: True, False, own;\
+         representing using invivo plus invitro information as input, using only invivo information as input\
+             using only invitro information as input",
+        default="False",
+    )
+    parser.add_argument(
+        "-ths",
+        "--threshold",
+        help="threshold for invitro experiment classification",
+        required=True,
+        nargs="?",
+    )
+    parser.add_argument(
+        "-ah", "--alpha_h", help="alpha_hamming", required=True, nargs="?"
+    )
+    parser.add_argument(
+        "-ap", "--alpha_p", help="alpha_pubchem", required=True, nargs="?"
+    )
+    parser.add_argument(
+        "-n",
+        "--n_neighbors",
+        help="number of neighbors in the RASAR model",
+        nargs="?",
+        default=1,
+        type=int,
+    )
+    parser.add_argument(
+        "-endpoint", "--train_endpoint", help="train_endpoint", required=True
+    )
+    parser.add_argument("-effect", "--train_effect", help="train_effect", required=True)
+    parser.add_argument("-o", "--output", help="outputFile", default="binary.txt")
     return parser.parse_args()
 
+
+# example:
+# python .../RASAR_df_invitro_general.py -i .../lc50_processed.csv -iv .../invitro.csv -idf  .../datafusion.csv \\
+#  -endpoint ['LC50','EC50'] -effect 'MOR' -il label -wi "True" -ah 0.1 -ap 0.1 -o .../df_rasar_vitro_label_general.txt  
 
 args = getArguments()
 if args.encoding == "binary":
@@ -38,28 +76,24 @@ elif args.encoding == "multiclass":
     encoding = "multiclass"
     encoding_value = [0.1, 1, 10, 100]
 
-if args.db_invitro != "noinvitro":
-    db_mortality, db_datafusion, db_invitro = load_datafusion_datasets_invitro(
-        args.inputFile,
-        args.inputFile_df,
-        args.db_invitro,
-        categorical_columns=categorical,
-        encoding=encoding,
-        encoding_value=encoding_value,
+# -------------------loading data & preprocessing--------------------
+db_mortality, db_datafusion, db_invitro = load_datafusion_datasets_invitro(
+    args.input,
+    args.input_df,
+    args.input_vitro,
+    categorical_columns=categorical,
+    encoding=encoding,
+    encoding_value=encoding_value,
+)
+if args.encoding == "binary":
+    db_invitro["invitro_label"] = np.where(
+        db_invitro["invitro_conc"].values > args.ths, 0, 1
     )
-    db_invitro["invitro_label"] = np.where(db_invitro["invitro_conc"].values > 1, 0, 1)
-else:
-    db_mortality, db_datafusion = load_datafusion_datasets(
-        args.inputFile,
-        args.inputFile_df,
-        categorical_columns=categorical,
-        encoding=encoding,
-        encoding_value=encoding_value,
+elif args.encoding == "multiclass":
+    db_invitro["invitro_label"] = multiclass_encoding(
+        db_invitro["invitro_conc"], [args.ths[0], args.ths[1], args.ths[2], args.ths[3]]
     )
-    db_invitro = args.db_invitro
 
-# db_mortality=db_mortality[:200]
-# db_datafusion=db_datafusion[:500]
 
 X = db_mortality.drop(columns="conc1_mean").copy()
 Y = db_mortality.conc1_mean.values
@@ -68,24 +102,35 @@ X_train, X_test, Y_train, Y_test = train_test_split(
     X, Y, test_size=0.2, random_state=42
 )
 
-print(ctime())
+print("calcultaing distance matrix..", ctime())
 matrix_euc, matrix_h, matrix_p = cal_matrixs(
     X_train, X_train, categorical, non_categorical
 )
+print("calcultaing datafusion distance matrix..", ctime())
 matrix_euc_df, matrix_h_df, matrix_p_df = cal_matrixs(
     X_train,
     db_datafusion.drop(columns="conc1_mean").copy(),
     categorical,
     non_categorical,
 )
-
+print("calcultaing invitro distance matrix..", ctime())
 matrix_euc_x_invitro, matrix_h_x_invitro, matrix_p_x_invitro = cal_matrixs(
     X_train, db_invitro, categorical_both, non_categorical
 )
 
-
 print("distance matrix successfully calculated!", ctime())
+
 del db_mortality
+
+if args.alpha_h == "logspace":
+    sequence_ap = np.logspace(-2, 0, 20)
+    sequence_ah = sequence_ap
+else:
+    sequence_ap = [float(args.alpha_p)]
+    sequence_ah = [float(args.alpha_h)]
+
+# -------------------training --------------------
+
 if encoding == "binary":
     model = RandomForestClassifier(random_state=10)
     hyper_params_tune = {
@@ -109,13 +154,6 @@ params_comb = list(ParameterSampler(hyper_params_tune, n_iter=40, random_state=r
 
 best_accs = 0
 best_p = dict()
-
-if args.alpha_h == "logspace":
-    sequence_ap = np.logspace(-2, 0, 20)
-    sequence_ah = sequence_ap
-else:
-    sequence_ap = [float(args.alpha_p)]
-    sequence_ah = [float(args.alpha_h)]
 
 
 for ah in sequence_ah:
@@ -141,7 +179,7 @@ for ah in sequence_ah:
                 X=X_train,
                 Y=Y_train,
                 db_datafusion=db_datafusion,
-                train_label=args.train_label,
+                train_endpoint=args.train_endpoint,
                 train_effect=args.train_effect,
                 model=model,
                 n_neighbors=args.n_neighbors,
@@ -203,7 +241,7 @@ datafusion_rasar_train, datafusion_rasar_test = cal_data_datafusion_rasar(
     X_test,
     db_datafusion,
     db_datafusion_matrix,
-    args.train_label,
+    args.train_endpoint,
     args.train_effect,
     encoding,
 )
@@ -218,64 +256,50 @@ if invitro == "own":
     train_rf = pd.DataFrame()
     test_rf = pd.DataFrame()
 
-if str(db_invitro) == "overlap":
-    if (invitro != "False") & (invitro_form == "number"):
-        train_rf["invitro_conc"] = X_train.invitro_conc.reset_index(drop=True)
-        test_rf["invitro_conc"] = X_test.invitro_conc.reset_index(drop=True)
 
-    elif (invitro != "False") & (invitro_form == "label"):
-        train_rf["invitro_label"] = X_train.invitro_label.reset_index(drop=True)
-        test_rf["invitro_label"] = X_test.invitro_label.reset_index(drop=True)
+if (invitro != "False") & (invitro_form == "number"):
+    ls = np.array(db_invitro_matrix_train.idxmin(axis=1))
+    dist = np.array(db_invitro_matrix_train.min(axis=1))
+    conc = db_invitro.iloc[ls, :].invitro_conc.reset_index(drop=True)
+    train_rf["invitro_conc"] = np.array(conc)
+    train_rf["invitro_dist"] = dist
 
-    elif (invitro != "False") & (invitro_form == "both"):
-        train_rf["invitro_conc"] = X_train.invitro_conc.reset_index(drop=True)
-        test_rf["invitro_conc"] = X_test.invitro_conc.reset_index(drop=True)
-        train_rf["invitro_label"] = X_train.invitro_label.reset_index(drop=True)
-        test_rf["invitro_label"] = X_test.invitro_label.reset_index(drop=True)
-else:
-    if (invitro != "False") & (invitro_form == "number"):
-        ls = np.array(db_invitro_matrix_train.idxmin(axis=1))
-        dist = np.array(db_invitro_matrix_train.min(axis=1))
-        conc = db_invitro.iloc[ls, :].invitro_conc.reset_index(drop=True)
-        train_rf["invitro_conc"] = np.array(conc)
-        train_rf["invitro_dist"] = dist
+    ls = np.array(db_invitro_matrix_test.idxmin(axis=1))
+    dist = np.array(db_invitro_matrix_test.min(axis=1))
+    conc = db_invitro.iloc[ls, :].invitro_conc.reset_index(drop=True)
+    test_rf["invitro_conc"] = np.array(conc)
+    test_rf["invitro_dist"] = dist
 
-        ls = np.array(db_invitro_matrix_test.idxmin(axis=1))
-        dist = np.array(db_invitro_matrix_test.min(axis=1))
-        conc = db_invitro.iloc[ls, :].invitro_conc.reset_index(drop=True)
-        test_rf["invitro_conc"] = np.array(conc)
-        test_rf["invitro_dist"] = dist
+elif (invitro != "False") & (invitro_form == "label"):
+    dist = np.array(db_invitro_matrix_train.min(axis=1))
+    ls = np.array(db_invitro_matrix_train.idxmin(axis=1))
+    label = db_invitro.iloc[ls, :].invitro_label.reset_index(drop=True)
+    train_rf["invitro_label"] = np.array(label)
+    train_rf["invitro_dist"] = dist
 
-    elif (invitro != "False") & (invitro_form == "label"):
-        dist = np.array(db_invitro_matrix_train.min(axis=1))
-        ls = np.array(db_invitro_matrix_train.idxmin(axis=1))
-        label = db_invitro.iloc[ls, :].invitro_label.reset_index(drop=True)
-        train_rf["invitro_label"] = np.array(label)
-        train_rf["invitro_dist"] = dist
+    dist = np.array(db_invitro_matrix_test.min(axis=1))
+    ls = np.array(db_invitro_matrix_test.idxmin(axis=1))
+    label = db_invitro.iloc[ls, :].invitro_label.reset_index(drop=True)
+    test_rf["invitro_label"] = np.array(label)
+    test_rf["invitro_dist"] = dist
 
-        dist = np.array(db_invitro_matrix_test.min(axis=1))
-        ls = np.array(db_invitro_matrix_test.idxmin(axis=1))
-        label = db_invitro.iloc[ls, :].invitro_label.reset_index(drop=True)
-        test_rf["invitro_label"] = np.array(label)
-        test_rf["invitro_dist"] = dist
+elif (invitro != "False") & (invitro_form == "both"):
 
-    elif (invitro != "False") & (invitro_form == "both"):
+    dist = np.array(db_invitro_matrix_train.min(axis=1))
+    ls = np.array(db_invitro_matrix_train.idxmin(axis=1))
+    conc = db_invitro.iloc[ls, :].invitro_conc.reset_index(drop=True)
+    label = db_invitro.iloc[ls, :].invitro_label.reset_index(drop=True)
+    train_rf["invitro_conc"] = np.array(conc)
+    train_rf["invitro_label"] = np.array(label)
+    train_rf["invitro_dist"] = dist
 
-        dist = np.array(db_invitro_matrix_train.min(axis=1))
-        ls = np.array(db_invitro_matrix_train.idxmin(axis=1))
-        conc = db_invitro.iloc[ls, :].invitro_conc.reset_index(drop=True)
-        label = db_invitro.iloc[ls, :].invitro_label.reset_index(drop=True)
-        train_rf["invitro_conc"] = np.array(conc)
-        train_rf["invitro_label"] = np.array(label)
-        train_rf["invitro_dist"] = dist
-
-        dist = np.array(db_invitro_matrix_test.min(axis=1))
-        ls = np.array(db_invitro_matrix_test.idxmin(axis=1))
-        conc = db_invitro.iloc[ls, :].invitro_conc.reset_index(drop=True)
-        label = db_invitro.iloc[ls, :].invitro_label.reset_index(drop=True)
-        test_rf["invitro_conc"] = np.array(conc)
-        test_rf["invitro_label"] = np.array(label)
-        test_rf["invitro_dist"] = dist
+    dist = np.array(db_invitro_matrix_test.min(axis=1))
+    ls = np.array(db_invitro_matrix_test.idxmin(axis=1))
+    conc = db_invitro.iloc[ls, :].invitro_conc.reset_index(drop=True)
+    label = db_invitro.iloc[ls, :].invitro_label.reset_index(drop=True)
+    test_rf["invitro_conc"] = np.array(conc)
+    test_rf["invitro_label"] = np.array(label)
+    test_rf["invitro_dist"] = dist
 
 
 del (
@@ -362,12 +386,13 @@ info.append(
 )
 
 info.append("Alpha_h:{}, Alpha_p: {},n:{}".format(best_ah, best_ap, args.n_neighbors))
-info.append("Random state".format(rand))
-filename = args.outputFile
-dirname = os.path.dirname(filename)
-if not os.path.exists(dirname):
-    os.makedirs(dirname)
 
-with open(filename, "w") as file_handler:
-    for item in info:
-        file_handler.write("{}\n".format(item))
+
+info.append(
+    "alpha_h:{}, alpha_p: {},n:{}, best hyperpatameters:{}".format(
+        best_ah, best_ap, args.n_neighbors, best_p
+    )
+)
+
+
+str2file(info, args.output)

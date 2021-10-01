@@ -2,9 +2,9 @@ import numpy as np
 import pandas as pd
 from scipy.stats import sem
 from scipy.spatial.distance import pdist, squareform, cdist
-from sklearn.preprocessing import OrdinalEncoder, MinMaxScaler, LabelBinarizer
+from sklearn.preprocessing import OrdinalEncoder, MinMaxScaler
 from sklearn.model_selection import KFold, train_test_split
-from sklearn.neighbors import KNeighborsClassifier, DistanceMetric
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     recall_score,
@@ -21,9 +21,8 @@ from sklearn.ensemble import RandomForestClassifier
 import h2o
 from h2o.estimators.random_forest import H2ORandomForestEstimator
 import warnings
-import heapq
 from numpy.lib.stride_tricks import as_strided
-from collections import Counter
+import os
 
 warnings.filterwarnings("ignore")
 
@@ -58,9 +57,6 @@ non_categorical = [
     "mol_weight",
     "water_solubility",
     "melting_point",
-    # "Mol",
-    # 'MeltingPoint',
-    # 'WaterSolubility'
 ]
 # comparing was used to identify similar experiments
 comparing = ["test_cas"] + categorical
@@ -599,18 +595,18 @@ def load_datafusion_datasets_invitro(
 
 
 def select_alpha(
-    X_train,
-    sequence_ham,
-    Y_train,
+    X,
+    Y,
     categorical_columns,
     non_categorical_columns,
+    sequence_ham,
     leaf_ls,
     neighbors,
     encoding,
 ):
-    # print("calcaulting the matrix...")
+    # creating the distance matrix
     matrix_euc, matrix_h, matrix_p = cal_matrixs(
-        X_train, X_train, categorical_columns, non_categorical_columns
+        X, X, categorical_columns, non_categorical_columns
     )
     best_alpha_h = 0
     best_alpha_p = 0
@@ -625,8 +621,8 @@ def select_alpha(
                         matrix_euc,
                         matrix_h,
                         matrix_p,
-                        X_train,
-                        Y_train,
+                        X,
+                        Y,
                         leaf,
                         neigh,
                         ah,
@@ -665,6 +661,7 @@ def select_alpha(
 def KNN_model(
     matrix_euc, matrix_h, matrix_p, X, Y, leaf, neighbor, ah, ap, encoding, seed=25
 ):
+    # using 5-fold cross validation to choose the alphas with best accuracy
     kf = KFold(n_splits=5, shuffle=True, random_state=seed)
     accs = []
     sens = []
@@ -672,12 +669,14 @@ def KNN_model(
     precs = []
     f1 = []
     for train_index, test_index in kf.split(X):
+
+        # Min max transform the dataset according to the training dataset
         matrix_euc = pd.DataFrame(matrix_euc)
         max_euc = matrix_euc.iloc[train_index, train_index].values.max()
-
         dist_matr = pd.DataFrame(
             ah * matrix_h + ap * matrix_p + matrix_euc.divide(max_euc).values
         )
+
         x_train = dist_matr.iloc[train_index, train_index]
         x_test = dist_matr.iloc[test_index, train_index]
         y_train = Y[train_index]
@@ -902,7 +901,7 @@ def RASAR_simple(
     X,
     db_invitro_matrix,
     n_neighbors=int(1),
-    invitro="False",
+    w_invitro="False",
     invitro_form="number",
     db_invitro="noinvitro",
     encoding="binary",
@@ -934,12 +933,12 @@ def RASAR_simple(
             encoding,
         )
 
-        if invitro == "own":
+        if w_invitro == "own":
             train_rf = pd.DataFrame()
             test_rf = pd.DataFrame()
 
         if str(db_invitro) == "overlap":
-            if (invitro != "False") & (invitro_form == "number"):
+            if (w_invitro != "False") & (invitro_form == "number"):
                 train_rf["invitro_conc"] = X.iloc[
                     train_index, :
                 ].invitro_conc.reset_index(drop=True)
@@ -947,7 +946,7 @@ def RASAR_simple(
                     test_index, :
                 ].invitro_conc.reset_index(drop=True)
 
-            elif (invitro != "False") & (invitro_form == "label"):
+            elif (w_invitro != "False") & (invitro_form == "label"):
                 train_rf["invitro_label"] = X.iloc[
                     train_index, :
                 ].invitro_label.reset_index(drop=True)
@@ -955,7 +954,7 @@ def RASAR_simple(
                     test_index, :
                 ].invitro_label.reset_index(drop=True)
 
-            elif (invitro != "False") & (invitro_form == "both"):
+            elif (w_invitro != "False") & (invitro_form == "both"):
                 train_rf["invitro_conc"] = X.iloc[
                     train_index, :
                 ].invitro_conc.reset_index(drop=True)
@@ -970,7 +969,7 @@ def RASAR_simple(
                 ].invitro_label.reset_index(drop=True)
         else:
 
-            if (invitro != "False") & (invitro_form == "number"):
+            if (w_invitro != "False") & (invitro_form == "number"):
                 matrix_invitro_euc = pd.DataFrame(db_invitro_matrix[2])
 
                 db_invitro_matrix_new = pd.DataFrame(
@@ -996,7 +995,7 @@ def RASAR_simple(
                 test_rf["invitro_conc"] = np.array(conc)
                 test_rf["invitro_dist"] = dist
 
-            elif (invitro != "False") & (invitro_form == "label"):
+            elif (w_invitro != "False") & (invitro_form == "label"):
                 matrix_invitro_euc = pd.DataFrame(db_invitro_matrix[2])
 
                 db_invitro_matrix_new = pd.DataFrame(
@@ -1023,7 +1022,7 @@ def RASAR_simple(
                 test_rf["invitro_label"] = np.array(label)
                 test_rf["invitro_dist"] = dist
 
-            elif (invitro != "False") & (invitro_form == "both"):
+            elif (w_invitro != "False") & (invitro_form == "both"):
                 matrix_invitro_euc = pd.DataFrame(db_invitro_matrix[2])
 
                 db_invitro_matrix_new = pd.DataFrame(
@@ -1186,7 +1185,7 @@ def cal_data_datafusion_rasar(
     db_mortality_test,
     db_datafusion,
     db_datafusion_matrix,
-    train_label,
+    train_endpoint,
     train_effect,
     encoding,
 ):
@@ -1197,7 +1196,7 @@ def cal_data_datafusion_rasar(
 
         db_endpoint = db_datafusion[db_datafusion.endpoint == endpoint]
         for effect in db_endpoint.effect.unique():
-            if (str(effect) == train_effect) & (str(endpoint) in train_label):
+            if (str(effect) == train_effect) & (str(endpoint) in train_endpoint):
                 continue
             else:
                 (
@@ -1254,7 +1253,7 @@ def cv_datafusion_rasar(
     Y,
     db_datafusion,
     db_invitro,
-    train_label,
+    train_endpoint,
     train_effect,
     model=RandomForestClassifier(random_state=10),
     n_neighbors=2,
@@ -1304,7 +1303,7 @@ def cv_datafusion_rasar(
             new_X.iloc[test_index],
             new_db_datafusion,
             db_datafusion_matrix,
-            train_label,
+            train_endpoint,
             train_effect,
             encoding,
         )
@@ -1562,7 +1561,7 @@ def cal_data_datafusion_rasar_multiclass(
     db_mortality_train,
     db_mortality_test,
     db_datafusion,
-    train_label,
+    train_endpoint,
     train_effect,
     ah,
     ap,
@@ -1576,7 +1575,7 @@ def cal_data_datafusion_rasar_multiclass(
         db_endpoint = db_datafusion[db_datafusion.endpoint == endpoint]
 
         for effect in db_endpoint.effect.unique():
-            if (str(effect) == train_effect) & (str(endpoint) in train_label):
+            if (str(effect) == train_effect) & (str(endpoint) in train_endpoint):
                 continue
             else:
                 for i in range(1, 6):
@@ -1634,7 +1633,7 @@ def cv_datafusion_rasar_multiclass(
     y,
     db_datafusion,
     db_invitro,
-    train_label,
+    train_endpoint,
     train_effect,
     n_neighbors=2,
     invitro=False,
@@ -1673,7 +1672,7 @@ def cv_datafusion_rasar_multiclass(
             X.iloc[test_index],
             db_datafusion,
             db_datafusion_matrix,
-            train_label,
+            train_endpoint,
             train_effect,
             encoding,
         )
@@ -1986,3 +1985,14 @@ def model_mul(
     results["ap"] = ap
     results["fold"] = num
     return results
+
+
+def str2file(info, outputFile):
+    filename = outputFile
+    dirname = os.path.dirname(filename)
+    if (not os.path.exists(dirname)) & (dirname != ""):
+        os.makedirs(dirname)
+    with open(filename, "w") as file_handler:
+        for item in info:
+            file_handler.write("{}\n".format(item))
+    print("file saved.")
