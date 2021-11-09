@@ -1,5 +1,6 @@
 from helper_dataprocessing import *
-#-----------------------Step 1: Load Data--------------------------------
+
+# -----------------------Step 1: Load Data--------------------------------
 
 # We used three experiment records files from Ecotox with version of 06/11/2020
 # from website (https://cfpub.epa.gov/ecotox/):
@@ -27,37 +28,36 @@ DATA_RESULTS_PATH = r"data/raw/results.txt"
 DATA_TEST_PATH = r"data/raw/tests.txt"
 DATA_SPECIES_PATH = r"data/raw/species.txt"
 DATA_PROPERTY_PATH = [
-    'data/DSSToxQueryWPred1.xlsx', 'data/DSSToxQueryWPred2.xlsx',
-    'data/DSSToxQueryWPred3.xlsx', 'data/DSSToxQueryWPred4.xlsx'
+    "data/DSSToxQueryWPred1.xlsx",
+    "data/DSSToxQueryWPred2.xlsx",
+    "data/DSSToxQueryWPred3.xlsx",
+    "data/DSSToxQueryWPred4.xlsx",
 ]
 
-tests, species, results, properties = load_raw_data(DATA_TEST_PATH,
-                                                    DATA_RESULTS_PATH,
-                                                    DATA_SPECIES_PATH,
-                                                    DATA_PROPERTY_PATH)
+tests, species, results, properties = load_raw_data(
+    DATA_TEST_PATH, DATA_RESULTS_PATH, DATA_SPECIES_PATH, DATA_PROPERTY_PATH
+)
 
-#---------------------Step 2: Prefiltering--------------------------------
+# ---------------------Step 2: Prefiltering--------------------------------
 
 # Once loaded the data, we filter the results on endpoint (we take only EC50 and LC50)
 # and effects (we take only mortality (MOR)). We restrict the animal kingdom to fish only.
 # Also, we removed embryos tests.
 
-results_prefiltered = prefilter(species,
-                                tests,
-                                results,
-                                endpoint="LC50|EC50",
-                                effect='MOR')
+results_prefiltered = prefilter(
+    species, tests, results, endpoint="LC50|EC50", effect="MOR"
+)
 
 # merging with the properties
 results_prefiltered = results_prefiltered.merge(properties, on="test_cas")
 
-#---------------------Step 3: Feature Selection and Imputation------------
+# ---------------------Step 3: Feature Selection and Imputation------------
 
 # After the selection, we proceeded to impute or remove the missing values.
 
 results_imputed = select_impute_features(results_prefiltered)
 
-#---------------------Step 4: Repeated Experiment Aggregation------------
+# ---------------------Step 4: Repeated Experiment Aggregation------------
 
 # For repeated experiments, we merged them into one and set the median concentration
 # as the results. We decided the two experiments are repeated if they share the same
@@ -66,7 +66,7 @@ results_imputed = select_impute_features(results_prefiltered)
 
 results = repeated_experiments(results_imputed)
 
-#---------------------Step 5: Extraction of PubChem2D and molecular descriptors from CASRN-----
+# ---------------------Step 5: Extraction of PubChem2D and molecular descriptors from CASRN-----
 
 # We use the file to extract all information from the CASRN.
 
@@ -74,17 +74,22 @@ results = repeated_experiments(results_imputed)
 # you can use the alternative function "process_chemicals" which takes as input a dataset
 # with these info already extracted.
 
-# Option 1: get the properties
-# results_pub = smiles_to_pubchem(results)
+if 0:
+    # Option 1: get the properties
+    results_pub = smiles_to_pubchem(results)
+else:
+    # Option 2: use the saved file
+    # The smiles column was extracted from the raw property datasets (DSSToxQueryWPred1-4) for each chemical in our invivo dataset.
+    # The pubchem2d column was generated using the function smiles_to_pubchem() in helper_dataprocessing.py on all the chemicals in our in vivo dataset.
+    # The function gets pubchem2d from smiles using the PubChemPy package.
 
-# Option 2: use the saved file
-pubchem = pd.read_csv("data/cas_pub_tot.csv")
-results_pub = results.merge(pubchem[["smiles", "pubchem2d"]], on="smiles")
+    pubchem = pd.read_csv("../data/processed/cas_pub_tot.csv")
+    results_pub = results.merge(pubchem[["smiles", "pubchem2d"]], on="smiles")
 
 # extract other molecular properties
 results_chem = extract_mol_properties(results_pub)
 
-#----------------------Step 6: Transformation of chemical features----------------
+# ----------------------Step 6: Transformation of chemical features----------------
 
 # Some variables need transformations to regularize their distributions.
 # The transformed features are: "bonds_number", "atom_number", "mol_weight" and "WaterSolubility".
@@ -93,5 +98,5 @@ results_chem = extract_mol_properties(results_pub)
 
 final_results = process_features(results_chem)
 
-final_results.to_csv('lc_db_processed_jim.csv')
-print("data saved.")
+final_results.to_csv("lc_db_processed.csv")
+
