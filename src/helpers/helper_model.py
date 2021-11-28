@@ -24,6 +24,10 @@ import warnings
 from numpy.lib.stride_tricks import as_strided
 import os
 
+import tensorflow as tf
+from tensorflow import keras
+
+
 warnings.filterwarnings("ignore")
 
 # categorical features will ordinal encoded
@@ -1996,3 +2000,126 @@ def str2file(info, outputFile):
         for item in info:
             file_handler.write("{}\n".format(item))
     print("file saved.")
+    
+# MLP model building helpers -------------------------------------------------
+
+def build_models(dat_obj, nout=1, activation='sigmoid', loss='binary_crossentropy', metrics=['accuracy']):
+    
+    # Define models
+    model0 = keras.models.Sequential()
+    initializer = tf.compat.v1.keras.initializers.glorot_normal(seed=1)
+    #regu = tf.compat.v1.keras.regularizers.L2(0.001)
+    model0.add(keras.Input(shape=(dat_obj.X_train.shape[1],)))
+    model0.add(keras.layers.Dense(nout, activation=activation, kernel_initializer=initializer))
+    model0.compile(optimizer='adam', loss=loss, metrics=metrics) # 'cross-entropy' is the same as the 'log-loss' of scikitlearn
+    
+    model1 = keras.models.Sequential()
+    initializer = tf.compat.v1.keras.initializers.glorot_normal(seed=1)
+    model1.add(keras.Input(shape=(dat_obj.X_train.shape[1],)))
+    model1.add(keras.layers.Dense(50, activation='tanh', kernel_initializer=initializer))
+    model1.add(keras.layers.Dense(nout, activation=activation, kernel_initializer=initializer))
+    model1.compile(optimizer='adam', loss=loss, metrics=metrics) # 'cross-entropy' is the same as the 'log-loss' of scikitlearn
+
+    model2 = keras.models.Sequential()
+    initializer = tf.compat.v1.keras.initializers.glorot_normal(seed=1)
+    model2.add(keras.Input(shape=(dat_obj.X_train.shape[1],)))
+    model2.add(keras.layers.Dense(500, activation='tanh', kernel_initializer=initializer))
+    model2.add(keras.layers.Dense(nout, activation=activation, kernel_initializer=initializer))
+    model2.compile(optimizer='adam', loss=loss, metrics=metrics) # 'cross-entropy' is the same as the 'log-loss' of scikitlearn
+
+    model3 = keras.models.Sequential()
+    initializer = tf.compat.v1.keras.initializers.glorot_normal(seed=1)
+    model3.add(keras.Input(shape=(dat_obj.X_train.shape[1],)))
+    model3.add(keras.layers.Dense(500, activation='tanh', kernel_initializer=initializer))
+    model3.add(keras.layers.Dropout(rate=0.3))
+    model3.add(keras.layers.Dense(200, activation='tanh', kernel_initializer=initializer))
+    model3.add(keras.layers.Dense(nout, activation=activation, kernel_initializer=initializer))
+    model3.compile(optimizer='adam', loss=loss, metrics=metrics) # 'cross-entropy' is the same as the 'log-loss' of scikitlearn
+
+    model4 = keras.models.Sequential()
+    initializer = tf.compat.v1.keras.initializers.glorot_normal(seed=1)
+    model4.add(keras.Input(shape=(dat_obj.X_train.shape[1],)))
+    model4.add(keras.layers.Dense(500, activation='tanh', kernel_initializer=initializer))
+    model4.add(keras.layers.Dropout(rate=0.3))
+    model4.add(keras.layers.Dense(200, activation='tanh', kernel_initializer=initializer))
+    model4.add(keras.layers.Dropout(rate=0.3))
+    model4.add(keras.layers.Dense(nout, activation=activation, kernel_initializer=initializer))
+    model4.compile(optimizer='adam', loss=loss, metrics=metrics) # 'cross-entropy' is the same as the 'log-loss' of scikitlearn
+
+    model5 = keras.models.Sequential()
+    initializer = tf.compat.v1.keras.initializers.glorot_normal(seed=1)
+    model5.add(keras.Input(shape=(dat_obj.X_train.shape[1],)))
+    model5.add(keras.layers.Dense(500, activation='tanh', kernel_initializer=initializer))
+    model5.add(keras.layers.Dropout(rate=0.3))
+    model5.add(keras.layers.Dense(200, activation='tanh', kernel_initializer=initializer))
+    model5.add(keras.layers.Dropout(rate=0.3))
+    model5.add(keras.layers.Dense(100, activation='tanh', kernel_initializer=initializer))
+    model5.add(keras.layers.Dense(50, activation='tanh', kernel_initializer=initializer))
+    model5.add(keras.layers.Dense(nout, activation=activation, kernel_initializer=initializer))
+    model5.compile(optimizer='adam', loss=loss, metrics=metrics) # 'cross-entropy' is the same as the 'log-loss' of scikitlearn
+
+    model6 = keras.models.Sequential()
+    initializer = tf.compat.v1.keras.initializers.glorot_normal(seed=1)
+    model6.add(keras.Input(shape=(dat_obj.X_train.shape[1],)))
+    model6.add(keras.layers.Dense(500, activation='tanh', kernel_initializer=initializer))
+    model6.add(keras.layers.Dropout(rate=0.5))
+    model6.add(keras.layers.Dense(200, activation='tanh', kernel_initializer=initializer))
+    model6.add(keras.layers.Dropout(rate=0.5))
+    model6.add(keras.layers.Dense(100, activation='tanh', kernel_initializer=initializer))
+    model6.add(keras.layers.Dropout(rate=0.3))
+    model6.add(keras.layers.Dense(50, activation='tanh', kernel_initializer=initializer))
+    model6.add(keras.layers.Dense(nout, activation=activation, kernel_initializer=initializer))
+    model6.compile(optimizer='adam', loss=loss, metrics=metrics) # 'cross-entropy' is the same as the 'log-loss' of scikitlearn
+
+
+
+    # Make a dict of the models to be fitted
+    mdls = {'model0':model0,
+            'model1':model1,
+            'model2':model2,
+            'model3':model3,
+            'model4':model4,
+            'model5':model5,
+            'model6':model6}
+    
+    return mdls
+
+def build_hypermodel(hp):
+    model = keras.Sequential()
+    for i in range(hp.Int('num_layers', 2, 5)):
+        model.add(keras.layers.Dense(units=hp.Int('units_' + str(i),
+                                            min_value=64,
+                                            max_value=1024,
+                                            step=64),
+                               activation='tanh'))
+        model.add(keras.layers.Dropout(rate=hp.Float('dropout',
+                                                     min_value=0.0,
+                                                     max_value=0.5,
+                                                     step=0.1)))
+    model.add(keras.layers.Dense(1, activation='sigmoid'))
+    model.compile(
+        optimizer=keras.optimizers.Adam(
+            hp.Choice('learning_rate', [1e-2, 1e-3, 1e-4, 1e-5])),
+        loss='binary_crossentropy',
+        metrics=['accuracy'])
+    return model
+
+def build_hypermodel_multiclass(hp):
+    model = keras.Sequential()
+    for i in range(hp.Int('num_layers', 2, 5)):
+        model.add(keras.layers.Dense(units=hp.Int('units_' + str(i),
+                                            min_value=64,
+                                            max_value=1024,
+                                            step=64),
+                               activation='tanh'))
+        model.add(keras.layers.Dropout(rate=hp.Float('dropout',
+                                                     min_value=0.0,
+                                                     max_value=0.5,
+                                                     step=0.1)))
+    model.add(keras.layers.Dense(5, activation='softmax'))
+    model.compile(
+        optimizer=keras.optimizers.Adam(
+            hp.Choice('learning_rate', [1e-2, 1e-3, 1e-4, 1e-5])),
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy'])
+    return model
