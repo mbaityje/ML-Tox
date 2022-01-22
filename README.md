@@ -99,4 +99,4 @@ Optional arguments:
 - Jimeng Wu
 - Simone D'Ambrosi
 - Lorenz Ammann
-*Supervisor*: Marco Baity-Jesi
+- *Supervisor*: Marco Baity-Jesi
