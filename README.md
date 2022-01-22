@@ -16,10 +16,17 @@ Use the package manager [pip](https://pip.pypa.io/en/stable/) to install foobar.
 
 **NOTE**: with this configuration, the `run.py` will run without **preprocessing**
 
-### Preprocessing prerequisites 
+### Preprocess prerequisites 
+To run the preprocessing phase the : `rdkit` (Tested on version *2017.09.1*) package and pubchempy(*1.0.4*) are needed.  
 
-#### Main database (ECOTOX Knowledge)
-The data on the experiments is downloaded from Ecotox. Documentation on the dataset can be found at https://cfpub.epa.gov/ecotox/
+To install `rdkit` in your environment use the command
+```bash/CMD
+conda install -c rdkit rdkit
+```
+*Note*: the `run.py` will work also without `rdkit` and `pubchempy` if no preprocessing is used. An already preprocessed dataset will be used.
+
+### Main database (ECOTOX Knowledge)
+The data on the experiments is downloaded from Ecotox. Documentation on the dataset can be found at https://cfpub.epa.gov/ecotox/. For information on molecular weight, melting Point, water Solubility and Smiles we used data from CompTox (DSSTox_Predicted_NCCT_Model.zip: DSSToxQueryWPred1.xlsx, DSSToxQueryWPred2.xlsx, DSSToxQueryWPred3.xlsx, DSSToxQueryWPred4.xlsx).
 
 Download the entire database as an ASCII file from the website, or do it from command line through
 ```
@@ -32,15 +39,6 @@ mv DSSTox_Predicted_NCCT_Model data/raw/ # Move it to the raw data directory
 ```
 If having problems with certificates, you can try adding the --no-check-certificate flag.
 
-
-#### Packages
-To run the preprocessing phase the : `rdkit` (Tested on version *2017.09.1*) package and pubchempy(*1.0.4*) are needed.  
-
-To install `rdkit` in your environment use the command
-```bash/CMD
-conda install -c rdkit rdkit
-```
-*Note*: the `run.py` will work also without `rdkit` and `pubchempy` if no preprocessing is used. An already preprocessed dataset will be used.
 
 
 ## Usage instruction
