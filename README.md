@@ -97,4 +97,6 @@ Optional arguments:
 
 ## Authors
 - Jimeng Wu
+- Simone D'Ambrosi
+- Lorenz Ammann
 *Supervisor*: Marco Baity-Jesi
