@@ -1,6 +1,6 @@
 # Machine Learning for Toxicological Testing
 ## Introduction
-In our project, we use a subset of the ECOTOX database and we use k-Nearest Neighbors (k-NN), logistic regression, random forest, and two kinds of read-across structure relationships models (simple RASAR and DF RASAR) to predict the effect of untested chemicals on tested species and vice versa. 
+In our project, we use a subset of the ECOTOX database and we use k-Nearest Neighbors (k-NN), logistic regression, random forest, two kinds of read-across structure relationships models (simple RASAR and DataFusion RASAR) and Multilayer perceptron to predict the effect of untested chemicals on tested species and vice versa. 
 
 
 ## Prerequites
@@ -12,25 +12,24 @@ In our project, we use a subset of the ECOTOX database and we use k-Nearest Neig
 - `scikit-learn` (tested on version *0.23.2*)
 - `pandas` (tested on version *1.1.3*)
 - `h2o` (tested on version *3.32.1.3*) (Only needed for multiclass datafusion model)
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install foobar.
 
 **NOTE**: with this configuration, the `run.py` will run without **preprocessing**
 
 ### Preprocess prerequisites 
-To run the preprocessing phase the : `rdkit` (Tested on version *2017.09.1*) package and pubchempy(*1.0.4*) are needed.  
+To run the preprocessing phase the : `rdkit` (Tested on version *2017.09.1*) package and `pubchempy` (*1.0.4*) are needed.  
 
 To install `rdkit` in your environment use the command
 ```bash/CMD
 conda install -c rdkit rdkit
 ```
-*Note*: the `run.py` will work also without `rdkit` and `pubchempy` if no preprocessing is used. An already preprocessed dataset will be used.
+**NOTE**: the `run.py` will work also without `rdkit` and `pubchempy` if no preprocessing is used. An already preprocessed dataset will be used.
 
-### Main database (ECOTOX Knowledge)
+## Main database (ECOTOX Knowledge)
 The data on the experiments is downloaded from Ecotox. Documentation on the dataset can be found at https://cfpub.epa.gov/ecotox/. For information on molecular weight, melting Point, water Solubility and Smiles we used data from CompTox (DSSTox_Predicted_NCCT_Model.zip: DSSToxQueryWPred1.xlsx, DSSToxQueryWPred2.xlsx, DSSToxQueryWPred3.xlsx, DSSToxQueryWPred4.xlsx).
 
 Download the entire database as an ASCII file from the website, or do it from command line through
 ```
-wget https://gaftp.epa.gov/ecotox/ecotox_ascii_09_15_2020.zip # This is for the version of 15 March 2021
+wget https://gaftp.epa.gov/ecotox/ecotox_ascii_09_15_2020.zip # This is for the version of 15 September 2020
 unzip ecotox_ascii_09_15_2020.zip # Decompress
 mv ecotox_ascii_09_15_2020 data/raw/ # Move it to the raw data directory
 wget https://gaftp.epa.gov/COMPTOX/Sustainable_Chemistry_Data/Chemistry_Dashboard/DSSTox_Predicted_NCCT_Model.zip  # chemical properties
@@ -75,21 +74,27 @@ Optional arguments:
     │        └── tests.txt 
     ├── output 
     |    ├── c                                    # Folder to store c results
-    |    └── cte                                  # Folder to store cte results
-    |    └── cte_wa                               # Folder to store cte_wa results
+    |    ├── cte                                  # Folder to store cte results
+    |    ├── cte_wa                               # Folder to store cte_wa results
+    |    └── mlp                                  # Folder to store mlp results
     |    
     ├── src                                    # Source files
-    |    ├── model                               
-    |    |    ├── helper_model.py              # algorithm helpers
-    │    |    ├── KNN.py
-    |    |    ├── LR.py          
-    |    |    ├── RF.py    
+    |    ├── helpers                           # algorithm helpers
+    |    |    ├── DataScipy.py              
+    │    |    ├── helper_chemproperty.py
+    |    |    ├── helper_dataprocess.py          
+    |    |    ├── helper_mlp.py    
+    │    |    └── herlpe_model.py
+    |    ├── model  
+    │    |    ├── KNN.py  
+    |    |    ├── LR.py     
+    |    |    ├── MLP.py    
     |    |    ├── RASAR_simple.py    
-    │    |    └── RASAR_df.py
+    |    |    ├── RASAR_df.py    
+    │    |    └── RF.py
     |    ├── preprocessing                     # Preprocessing algorithm helpers and algorithms
-    |         ├── helper_preprocess.py          
-    |         ├── helper_chemproperty.py          
-    │         └── data_preprocess.py
+    |         ├── data_preprocess.py          
+    │         └── data_preprocess_df.py
     ├── run.py                                 # Main entry point for the algorithms
     └── README.md
 
