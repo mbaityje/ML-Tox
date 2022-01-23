@@ -73,55 +73,34 @@ Optional arguments:
     |        ├── results.txt                      # Raw data (need preprocessing)
     |        ├── species.txt 
     │        └── tests.txt 
+    │
     ├── output 
-    |    ├── c                                    # Folder to store c results
-    |    ├── cte                                  # Folder to store cte results
-    |    ├── cte_wa                               # Folder to store cte_wa results
-    |    └── mlp                                  # Folder to store mlp results
+    |     ├── c                                    # Folder to store c results
+    |     ├── cte                                  # Folder to store cte results
+    |     ├── cte_wa                               # Folder to store cte_wa results
+    |     └── mlp                                  # Folder to store mlp results
     |    
-    ├── src                                    # Source files
-    |    ├── helpers                           # algorithm helpers
-    |    |    ├── DataScipy.py              
-    │    |    ├── helper_chemproperty.py
-    |    |    ├── helper_dataprocess.py          
-    |    |    ├── helper_mlp.py    
-    │    |    └── herlpe_model.py
+    ├── src                                        # Source files
     |    ├── model  
-<<<<<<< HEAD
-<<<<<<< HEAD
-    │    |    ├── helpers.py
-    │    |    |    ├── DataScipy.py 
-    │    |    |    ├── helper_mlp.py 
-    │    |    |    └── herlpe_model.py 
-=======
->>>>>>> c999eb2ea07981374aa85bfd3b3934e1cc3d2f28
-=======
->>>>>>> c999eb2ea07981374aa85bfd3b3934e1cc3d2f28
+    │    |    ├── helpers
+    │    |    |     ├── DataScipy.py 
+    │    |    |     ├── helper_mlp.py 
+    │    |    |     └── herlpe_model.py     
     │    |    ├── KNN.py  
     |    |    ├── LR.py     
     |    |    ├── MLP.py    
-    |    |    ├── RASAR_simple.py    
     |    |    ├── RASAR_df.py    
+    |    |    ├── RASAR_simple.py    
     │    |    └── RF.py
-<<<<<<< HEAD
-<<<<<<< HEAD
+    │    | 
     |    └── preprocessing                        # Preprocessing algorithm helpers and algorithms
-    │         ├── helpers.py
-    │         |    ├── helper_chemproperty.py 
-    │         |    └── helper_dataprocess.py                     
-    |         ├── data_preprocess_df.py          
-    │         └── data_preprocess.py
-=======
-    |    ├── preprocessing                     # Preprocessing algorithm helpers and algorithms
-    |         ├── data_preprocess.py          
-    │         └── data_preprocess_df.py
->>>>>>> c999eb2ea07981374aa85bfd3b3934e1cc3d2f28
-=======
-    |    ├── preprocessing                     # Preprocessing algorithm helpers and algorithms
-    |         ├── data_preprocess.py          
-    │         └── data_preprocess_df.py
->>>>>>> c999eb2ea07981374aa85bfd3b3934e1cc3d2f28
-    ├── run.py                                 # Main entry point for the algorithms
+    │          ├── helpers
+    │          |     ├── helper_chemproperty.py 
+    │          |     └── helper_dataprocess.py                     
+    |          ├── data_preprocess_df.py          
+    │          └── data_preprocess.py
+    │ 
+    ├── run.py                                    # Main entry point for the algorithms
     └── README.md
 
 ## Authors
