@@ -57,13 +57,16 @@ tests, species, results, properties = load_raw_data(
 
 results_prefiltered = prefilter(species, tests, results, label="datafusion")
 
+# merging with the properties
+results_prefiltered = results_prefiltered.merge(properties, on="test_cas")
+
 
 # --------------Step 3: Effect & Endpoint Selection; Imputation--------------
 
 # Once loaded the data, we filter the effect and endpoint only if they
 # have enought experiment records, and we remove all mortality experiments
 
-results_imputated = crosstab_rep_exp(results_prefiltered, effect="MOR")
+results_imputated = crosstab_rep_exp(results_prefiltered)
 
 
 # ----Step 4: Extraction of PubChem2D and molecular descriptors from CASRN----
@@ -86,7 +89,7 @@ else:
     # in helper_dataprocessing.py on all the chemicals in our in vivo dataset.
     # The function gets pubchem2d from smiles using the PubChemPy package.
 
-    pubchem = pd.read_csv("../data/raw/cas_pub_tot.csv")
+    pubchem = pd.read_csv(r"data/raw/cas_pub_tot.csv")
     results_pub = results_imputated.merge(pubchem[["smiles", "pubchem2d"]], on="smiles")
 
 
@@ -96,13 +99,9 @@ results_chem = extract_mol_properties(results_pub)
 # -------------------Step 5: Transformation of chemical features-------------------
 
 # Some variables need transformations to regularize their distributions.
-# The transformed features are: "bonds_number", "atom_number", "mol_weight" and
+# The transformed features are: "bonds_number", "atom_number", "Mol" and
 # "WaterSolubility". Transformation is logarithmic and then MinMax. For
 # "WaterSolubility", we used the Box-Cox transformation to normalize the distribution.
 
 final_results = process_features(results_chem)
-
 final_results.to_csv(args.output)
-
-
-# The website was ftp://newftp.epa.gov/COMPTOX/Sustainable_Chemistry_Data/Chemistry_Dashboard

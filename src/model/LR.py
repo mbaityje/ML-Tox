@@ -127,12 +127,3 @@ df_output = pd.concat(
 
 df_output["model"] = str(best_p)
 df2file(df_output, args.output)
-
-
-# tn, fp, fn, tp = confusion_matrix(Y_test, y_pred, labels=[0, 1]).ravel()
-
-# accs = accuracy_score(Y_test, y_pred)
-# sens = recall_score(Y_test, y_pred)
-# specs = tn / (tn + fp)
-# precs = precision_score(Y_test, y_pred)
-# f1 = f1_score(Y_test, y_pred)

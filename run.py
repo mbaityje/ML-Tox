@@ -4,7 +4,7 @@ from time import ctime
 import subprocess
 
 
-folder = ".../"
+folder = "/local/wujimeng/code_simone/github_marco/ML-Tox/"
 
 MODEL_PATH = "src/model/"
 PREP_PATH = "src/preprocess/"
@@ -329,4 +329,5 @@ if __name__ == "__main__":
         help="Run models using cte with alphas",
     )
     args = parser.parse_args()
-    main(args.preproc, args.encoding, args.c, args.cte, args.cte_wa)
+    # main(args.preproc, args.encoding, args.c, args.cte, args.cte_wa)
+    main(args.preproc, "multiclass", True, True, True)

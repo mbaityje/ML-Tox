@@ -183,8 +183,7 @@ if args.alpha_h:
     df_test_score = fit_and_predict(
         model, train_rasar, Y_trainvalid, test_rasar, Y_test, encoding
     )
-# model.fit(train_rasar, Y_trainvalid)
-# y_pred = model.predict(test_rasar)
+
 else:
     train_rasar, test_rasar = woalphas_cal_s_rasar(
         X_trainvalid, X_test, Y_trainvalid, Y_test, args.encoding

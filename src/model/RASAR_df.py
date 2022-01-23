@@ -116,13 +116,16 @@ if encoding == "binary":
         "min_samples_leaf": [1, 2, 4, 8, 16, 32],
     }
 elif encoding == "multiclass":
-    h2o.init()
+
+    h2o.init(strict_version_check=False)
+
     h2o.no_progress()
     model = H2ORandomForestEstimator(seed=10)
     hyper_params_tune = {
         "ntrees": [i for i in range(10, 1000, 10)],
         "max_depth": [i for i in range(10, 1000, 10)],
-        "min_rows": [1, 10, 100, 1000],
+        "min_rows": [10],
+        # [1, 10, 100, 1000],
         "sample_rate": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
     }
 
@@ -286,22 +289,13 @@ elif encoding == "multiclass":
     model.train(y="target", training_frame=train_rasar_h2o)
     y_pred = model.predict(test_rasar_h2o).as_data_frame()["predict"]
 
-    accs = accuracy_score(Y_test, y_pred)
-    sens = recall_score(Y_test, y_pred, average="macro")
-    specs = np.nan
-    precs = precision_score(Y_test, y_pred, average="macro")
-    f1 = f1_score(Y_test, y_pred, average="macro")
-
-    model.train(y="target", training_frame=train_rasar_h2o)
-    y_pred = model.predict(test_rasar_h2o).as_data_frame()["predict"]
-
     df_test_score = pd.DataFrame()
     df_test_score.loc[0, "accuracy"] = accuracy_score(Y_test, y_pred)
     df_test_score.loc[0, "recall"] = recall_score(Y_test, y_pred, average="macro")
     df_test_score.loc[0, "specificity"] = np.nan
     df_test_score.loc[0, "f1"] = f1_score(Y_test, y_pred, average="macro")
     df_test_score.loc[0, "precision"] = precision_score(Y_test, y_pred, average="macro")
-
+    h2o.shutdown()
 df_output = pd.concat(
     [df_mean, df_std, df_test_score],
     keys=["train_mean", "train_std", "test"],

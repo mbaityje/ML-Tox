@@ -92,9 +92,6 @@ if args.k_num:
 
     df_mean = pd.DataFrame(best_result.mean(axis=0)).transpose()
     df_std = pd.DataFrame(best_result.sem(axis=0)).transpose()
-    # df_knn_train = pd.concat(
-    #     [df_mean, df_std], keys=["train_mean", "train_std"]
-    # ).reset_index(level=1, drop=True)
 else:
     k_ls = [1, 2, 3, 4, 5, 7, 9, 11, 13, 15, 17, 19, 21, 31]
     # k_ls = [1, 2, 3, 4, 5]
